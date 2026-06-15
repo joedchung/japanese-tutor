@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nihongo in Context</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --accent: #e8513a;
+      --accent2: #f0a500;
+      --text: #e8eaf0;
+      --muted: #7a7f99;
+      --border: #2e3150;
+      --green: #4caf7d;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* Layout */
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; }
+    .main { margin-left: 260px; flex: 1; padding: 40px; max-width: 900px; }
+
+    /* Sidebar */
+    .sidebar-header { padding: 24px 20px 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-title { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -0.3px; }
+    .sidebar-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .phase-group { padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .phase-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 0 20px 8px; }
+    .nav-item { display: block; padding: 9px 20px; font-size: 13px; cursor: pointer; color: var(--muted); transition: all 0.15s; border-left: 3px solid transparent; }
+    .nav-item:hover { color: var(--text); background: var(--surface2); }
+    .nav-item.active { color: var(--text); background: var(--surface2); border-left-color: var(--accent); font-weight: 600; }
+    .nav-item.locked { opacity: 0.4; cursor: not-allowed; }
+    .nav-badge { float: right; font-size: 10px; background: var(--surface2); padding: 2px 7px; border-radius: 20px; color: var(--muted); }
+    .nav-item.active .nav-badge { background: var(--accent); color: white; }
+    .progress-bar-wrap { padding: 16px 20px; }
+    .progress-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .progress-bar { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.4s ease; }
+
+    /* Pages */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Page header */
+    .page-header { margin-bottom: 32px; }
+    .page-tag { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+    .page-desc { color: var(--muted); font-size: 15px; line-height: 1.6; }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
+    .card-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Hiragana grid */
+    .kana-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; }
+    .kana-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 6px; text-align: center; cursor: pointer; transition: all 0.15s; }
+    .kana-cell:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .kana-cell.learned { border-color: var(--green); background: rgba(76, 175, 125, 0.08); }
+    .kana-char { font-size: 22px; display: block; margin-bottom: 3px; }
+    .kana-rom { font-size: 11px; color: var(--muted); }
+
+    /* Flashcard */
+    .flashcard-wrap { perspective: 1000px; margin: 0 auto 24px; max-width: 360px; }
+    .flashcard { width: 100%; height: 200px; position: relative; transform-style: preserve-3d; transition: transform 0.5s ease; cursor: pointer; }
+    .flashcard.flipped { transform: rotateY(180deg); }
+    .card-face { position: absolute; inset: 0; border-radius: var(--radius); display: flex; flex-direction: column; align-items: center; justify-content: center; backface-visibility: hidden; border: 2px solid var(--border); }
+    .card-front { background: var(--surface); }
+    .card-back { background: var(--surface2); transform: rotateY(180deg); border-color: var(--accent); }
+    .fc-char { font-size: 72px; line-height: 1; }
+    .fc-rom { font-size: 36px; color: var(--accent); font-weight: 700; }
+    .fc-hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .fc-controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* Buttons */
+    .btn { padding: 10px 22px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-success { background: var(--green); color: white; }
+    .btn-success:hover { opacity: 0.85; }
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+    /* Quiz */
+    .quiz-question { font-size: 56px; text-align: center; margin: 20px 0; }
+    .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .quiz-opt { background: var(--surface2); border: 2px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; font-size: 20px; cursor: pointer; transition: all 0.15s; }
+    .quiz-opt:hover:not(.disabled) { border-color: var(--accent); }
+    .quiz-opt.correct { border-color: var(--green); background: rgba(76,175,125,0.15); }
+    .quiz-opt.wrong { border-color: var(--accent); background: rgba(232,81,58,0.15); }
+    .quiz-opt.disabled { cursor: not-allowed; }
+    .quiz-feedback { text-align: center; margin-top: 14px; font-size: 15px; min-height: 22px; font-weight: 600; }
+    .quiz-score { display: flex; gap: 20px; justify-content: center; margin-bottom: 20px; }
+    .score-item { text-align: center; }
+    .score-num { font-size: 28px; font-weight: 800; }
+    .score-label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+
+    /* Grammar */
+    .grammar-row { display: flex; align-items: flex-start; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .grammar-row:last-child { border-bottom: none; }
+    .particle { font-size: 26px; font-weight: 700; color: var(--accent); min-width: 36px; }
+    .grammar-info { flex: 1; }
+    .grammar-name { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+    .grammar-desc { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .grammar-ex { font-size: 13px; background: var(--surface2); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--accent); }
+    .grammar-ex-rom { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* Numbers */
+    .num-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+    .num-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+    .num-val { font-size: 20px; font-weight: 700; color: var(--accent2); }
+    .num-jp { font-size: 18px; }
+    .num-rom { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* Coming soon */
+    .coming-soon { text-align: center; padding: 60px 20px; }
+    .coming-soon-icon { font-size: 48px; margin-bottom: 16px; }
+    .coming-soon h2 { font-size: 22px; margin-bottom: 8px; }
+    .coming-soon p { color: var(--muted); font-size: 14px; }
+
+    /* Home */
+    .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+    .home-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: all 0.15s; }
+    .home-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .home-card.locked { opacity: 0.5; cursor: not-allowed; }
+    .home-card:hover.locked { transform: none; border-color: var(--border); }
+    .home-icon { font-size: 28px; margin-bottom: 10px; }
+    .home-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .home-card p { font-size: 12px; color: var(--muted); }
+    .home-card .tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-top: 10px; text-transform: uppercase; }
+    .tag-active { background: rgba(232,81,58,0.2); color: var(--accent); }
+    .tag-soon { background: var(--surface2); color: var(--muted); }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .sidebar { width: 100%; height: auto; position: relative; }
+      .main { margin-left: 0; padding: 20px; }
+      .app { flex-direction: column; }
+      .home-grid { grid-template-columns: 1fr; }
+      .quiz-options { grid-template-columns: 1fr 1fr; }
+    }
+
+    .section-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 20px; }
+    .section-divider span { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+    .section-divider:after, .section-divider:before { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .section-divider:before { display: none; }
+
+    .tip { background: rgba(240,165,0,0.08); border: 1px solid rgba(240,165,0,0.25); border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--accent2); margin-top: 14px; }
+    .tip strong { display: block; margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">🇯🇵 Nihongo in Context</div>
+      <div class="sidebar-sub">Your personal Japanese tutor</div>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-label"><span>Overall Progress</span><span id="progress-pct">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="phase-group">
+      <div class="phase-label">Start Here</div>
+      <div class="nav-item active" onclick="showPage('home')">🏠 Home</div>
+    </div>
+
+    <div class="phase-group">
+      <div class="phase-label">Phase 1 — Foundation</div>
+      <div class="nav-item" onclick="showPage('hiragana')">あ Hiragana <span class="nav-badge">46</span></div>
+      <div class="nav-item" onclick="showPage('katakana')">ア Katakana <span class="nav-badge">46</span></div>
+      <div class="nav-item" onclick="showPage('grammar')">文 Core Grammar</div>
+      <div class="nav-item" onclick="showPage('numbers')">1 Numbers</div>
+    </div>
+
+    <div class="phase-group">
+      <div class="phase-label">Phase 2 — Real World</div>
+      <div class="nav-item locked">✈️ Arriving in Japan</div>
+      <div class="nav-item locked">🚃 Getting Around</div>
+      <div class="nav-item locked">🍜 Food & Restaurants</div>
+      <div class="nav-item locked">🛍️ Shopping</div>
+      <div class="nav-item locked">🗣️ Small Talk</div>
+      <div class="nav-item locked">🆘 Emergencies</div>
+    </div>
+
+    <div class="phase-group">
+      <div class="phase-label">Phase 3 — Anime & Games</div>
+      <div class="nav-item locked">💬 Casual Speech</div>
+      <div class="nav-item locked">😤 Emotions & Reactions</div>
+      <div class="nav-item locked">⚔️ Game Vocabulary</div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+      <div class="page-header">
+        <div class="page-tag">Welcome</div>
+        <div class="page-title">Nihongo in Context</div>
+        <div class="page-desc">Learn Japanese anchored to real situations — travel, daily life, anime and games. No random vocab lists. Every lesson teaches language you'll actually use.</div>
+      </div>
+      <div class="home-grid">
+        <div class="home-card" onclick="showPage('hiragana')">
+          <div class="home-icon">あ</div>
+          <h3>Hiragana</h3>
+          <p>The first writing system. 46 characters, each a syllable.</p>
+          <span class="tag tag-active">Start Here</span>
+        </div>
+        <div class="home-card" onclick="showPage('katakana')">
+          <div class="home-icon">ア</div>
+          <h3>Katakana</h3>
+          <p>Used for foreign words, game menus, and sound effects.</p>
+          <span class="tag tag-active">Phase 1</span>
+        </div>
+        <div class="home-card" onclick="showPage('grammar')">
+          <div class="home-icon">文</div>
+          <h3>Core Grammar</h3>
+          <p>Sentence structure and particles — how Japanese is wired.</p>
+          <span class="tag tag-active">Phase 1</span>
+        </div>
+        <div class="home-card" onclick="showPage('numbers')">
+          <div class="home-icon">123</div>
+          <h3>Numbers</h3>
+          <p>Prices, dates, floors, and train times.</p>
+          <span class="tag tag-active">Phase 1</span>
+        </div>
+        <div class="home-card locked">
+          <div class="home-icon">✈️</div>
+          <h3>Arriving in Japan</h3>
+          <p>Airport, customs, getting to your hotel.</p>
+          <span class="tag tag-soon">Coming Soon</span>
+        </div>
+        <div class="home-card locked">
+          <div class="home-icon">🍜</div>
+          <h3>Food & Restaurants</h3>
+          <p>Order food, handle allergies, pay the bill.</p>
+          <span class="tag tag-soon">Coming Soon</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HIRAGANA -->
+    <div class="page" id="page-hiragana">
+      <div class="page-header">
+        <div class="page-tag">Phase 1 · Writing Systems</div>
+        <div class="page-title">Hiragana あいうえお</div>
+        <div class="page-desc">Hiragana is the foundation of Japanese. Every sound in the language can be written with these 46 characters. Master this first.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">All 46 Characters — Click to mark learned</div>
+        <div class="kana-grid" id="hiragana-grid"></div>
+        <div class="tip" style="margin-top:14px;"><strong>💡 Study tip</strong> Don't try to memorize all 46 at once. Learn one row (5 characters) at a time, then use the flashcard practice below.</div>
+      </div>
+
+      <div class="section-divider"><span>Flashcard Practice</span></div>
+
+      <div class="card">
+        <div class="card-title">Flashcards — Click card to flip</div>
+        <div id="fc-counter" style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:12px;"></div>
+        <div class="flashcard-wrap">
+          <div class="flashcard" id="hira-fc" onclick="flipCard('hira')">
+            <div class="card-face card-front">
+              <span class="fc-char" id="hira-char">あ</span>
+              <span class="fc-hint">Click to reveal</span>
+            </div>
+            <div class="card-face card-back">
+              <span class="fc-rom" id="hira-rom">a</span>
+              <span class="fc-hint">The first hiragana</span>
+            </div>
+          </div>
+        </div>
+        <div class="fc-controls">
+          <button class="btn btn-secondary" onclick="prevCard('hira')">← Prev</button>
+          <button class="btn btn-success" onclick="markLearned()">✓ Got it</button>
+          <button class="btn btn-primary" onclick="nextCard('hira')">Next →</button>
+        </div>
+      </div>
+
+      <div class="section-divider"><span>Quiz</span></div>
+
+      <div class="card">
+        <div class="card-title">Hiragana Quiz — Pick the correct romaji</div>
+        <div class="quiz-score">
+          <div class="score-item"><div class="score-num" id="h-score">0</div><div class="score-label">Correct</div></div>
+          <div class="score-item"><div class="score-num" id="h-total">0</div><div class="score-label">Total</div></div>
+          <div class="score-item"><div class="score-num" id="h-streak">0</div><div class="score-label">Streak</div></div>
+        </div>
+        <div class="quiz-question" id="h-question">?</div>
+        <div class="quiz-options" id="h-options"></div>
+        <div class="quiz-feedback" id="h-feedback"></div>
+        <div style="text-align:center;margin-top:16px;">
+          <button class="btn btn-secondary btn-sm" onclick="initHiraQuiz()">Restart Quiz</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KATAKANA -->
+    <div class="page" id="page-katakana">
+      <div class="page-header">
+        <div class="page-tag">Phase 1 · Writing Systems</div>
+        <div class="page-title">Katakana アイウエオ</div>
+        <div class="page-desc">Katakana represents the same sounds as hiragana but is used for foreign loanwords, game menus, sound effects, and emphasis. Essential for anime and games.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">All 46 Characters</div>
+        <div class="kana-grid" id="katakana-grid"></div>
+        <div class="tip" style="margin-top:14px;"><strong>💡 Why katakana matters for games</strong> Most game terms are katakana loanwords from English: アイテム (item), クエスト (quest), レベル (level), スキル (skill).</div>
+      </div>
+
+      <div class="section-divider"><span>Flashcard Practice</span></div>
+
+      <div class="card">
+        <div class="card-title">Flashcards — Click card to flip</div>
+        <div id="kata-fc-counter" style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:12px;"></div>
+        <div class="flashcard-wrap">
+          <div class="flashcard" id="kata-fc" onclick="flipCard('kata')">
+            <div class="card-face card-front">
+              <span class="fc-char" id="kata-char">ア</span>
+              <span class="fc-hint">Click to reveal</span>
+            </div>
+            <div class="card-face card-back">
+              <span class="fc-rom" id="kata-rom">a</span>
+              <span class="fc-hint">Same sound as あ</span>
+            </div>
+          </div>
+        </div>
+        <div class="fc-controls">
+          <button class="btn btn-secondary" onclick="prevCard('kata')">← Prev</button>
+          <button class="btn btn-primary" onclick="nextCard('kata')">Next →</button>
+        </div>
+      </div>
+
+      <div class="section-divider"><span>Quiz</span></div>
+
+      <div class="card">
+        <div class="card-title">Katakana Quiz</div>
+        <div class="quiz-score">
+          <div class="score-item"><div class="score-num" id="k-score">0</div><div class="score-label">Correct</div></div>
+          <div class="score-item"><div class="score-num" id="k-total">0</div><div class="score-label">Total</div></div>
+          <div class="score-item"><div class="score-num" id="k-streak">0</div><div class="score-label">Streak</div></div>
+        </div>
+        <div class="quiz-question" id="k-question">?</div>
+        <div class="quiz-options" id="k-options"></div>
+        <div class="quiz-feedback" id="k-feedback"></div>
+        <div style="text-align:center;margin-top:16px;">
+          <button class="btn btn-secondary btn-sm" onclick="initKataQuiz()">Restart Quiz</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GRAMMAR -->
+    <div class="page" id="page-grammar">
+      <div class="page-header">
+        <div class="page-tag">Phase 1 · Core Mechanics</div>
+        <div class="page-title">How Japanese Works</div>
+        <div class="page-desc">Japanese is wired differently from English. Understanding these fundamentals will make everything else click.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Sentence Structure: Subject → Object → Verb</div>
+        <div style="font-size:14px;line-height:1.8;color:var(--muted);">
+          <p>English: <strong style="color:var(--text)">I eat sushi.</strong> (S → V → O)</p>
+          <p style="margin-top:8px;">Japanese: <strong style="color:var(--text)">私は寿司を食べます。</strong> (S → O → V)</p>
+          <p style="font-size:12px;margin-top:4px;"><em>Watashi wa sushi wo tabemasu.</em></p>
+          <p style="margin-top:12px;">The verb always comes last. Once you internalize this, Japanese sentences start to make sense.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Particles — The Grammar Glue</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Particles are tiny words that show the role of each word in a sentence. They're unique to Japanese and take a little getting used to — but there are only a handful of essential ones.</p>
+        <div id="particle-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Politeness Levels</div>
+        <div style="font-size:14px;line-height:1.8;">
+          <p style="color:var(--muted);margin-bottom:12px;">Japanese has two main registers. You'll start with polite form — it's safe everywhere.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div style="background:var(--surface2);border-radius:8px;padding:14px;">
+              <div style="font-weight:700;color:var(--green);margin-bottom:6px;">✓ Polite Form (masu/desu)</div>
+              <div style="font-size:13px;color:var(--muted);">Use with strangers, shop staff, service workers, and anyone you've just met. Safe everywhere.</div>
+              <div style="margin-top:10px;font-size:13px;">食べ<strong>ます</strong> — tabemasu (eat)<br>学生<strong>です</strong> — gakusei desu (am a student)</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:14px;">
+              <div style="font-weight:700;color:var(--accent2);margin-bottom:6px;">Plain Form (dictionary/casual)</div>
+              <div style="font-size:13px;color:var(--muted);">Use with close friends, family, and peers. Also used in anime and games — so you'll recognize it even if you don't speak it yet.</div>
+              <div style="margin-top:10px;font-size:13px;">食べ<strong>る</strong> — taberu (eat)<br>学生<strong>だ</strong> — gakusei da (am a student)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Questions — Just Add か</div>
+        <div style="font-size:14px;line-height:1.8;color:var(--muted);">
+          <p>To turn any statement into a question, add <strong style="color:var(--accent)">か (ka)</strong> at the end. No word order change needed.</p>
+          <div style="margin-top:12px;background:var(--surface2);border-radius:8px;padding:14px;">
+            <div>これは寿司<strong style="color:var(--text)">です</strong>。→ This is sushi.</div>
+            <div style="margin-top:6px;">これは寿司<strong style="color:var(--accent)">ですか</strong>？→ Is this sushi?</div>
+            <div style="margin-top:6px;font-size:12px;color:var(--muted);">Kore wa sushi desu ka?</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NUMBERS -->
+    <div class="page" id="page-numbers">
+      <div class="page-header">
+        <div class="page-tag">Phase 1 · Core Mechanics</div>
+        <div class="page-title">Numbers 数字</div>
+        <div class="page-desc">Numbers are essential from day one — for prices, floors, train times, and counting. The good news: Japanese numbers follow a perfectly logical pattern.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">1 – 10 (The Core)</div>
+        <div class="num-grid" id="num-grid-10"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">How to Build Larger Numbers</div>
+        <div style="font-size:14px;line-height:1.9;color:var(--muted);">
+          <p>Japanese numbers are perfectly logical — no irregular forms like "eleven" or "twelve".</p>
+          <div style="margin-top:12px;background:var(--surface2);border-radius:8px;padding:14px;font-size:14px;">
+            <div><strong style="color:var(--text)">11</strong> = 十一 (juu ichi) — literally "ten one"</div>
+            <div><strong style="color:var(--text)">20</strong> = 二十 (ni juu) — literally "two ten"</div>
+            <div><strong style="color:var(--text)">35</strong> = 三十五 (san juu go) — "three ten five"</div>
+            <div><strong style="color:var(--text)">100</strong> = 百 (hyaku)</div>
+            <div><strong style="color:var(--text)">1,000</strong> = 千 (sen)</div>
+            <div><strong style="color:var(--text)">10,000</strong> = 万 (man) — Japanese groups by 10,000, not 1,000</div>
+          </div>
+          <div class="tip"><strong>💡 Price tip</strong> ¥1,500 = 千五百円 (sen go hyaku en). Read the digits, apply the place values. Once you've practiced, prices click fast.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">100 – 10,000</div>
+        <div class="num-grid" id="num-grid-big"></div>
+      </div>
+    </div>
+
+    <!-- COMING SOON PAGES -->
+    <div class="page" id="page-coming">
+      <div class="coming-soon">
+        <div class="coming-soon-icon">🚧</div>
+        <h2>Coming Soon</h2>
+        <p>This unit is in progress. Complete Phase 1 first, and it'll unlock soon.</p>
+        <button class="btn btn-secondary" style="margin-top:20px;" onclick="showPage('home')">← Back to Home</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────────────
+
+const hiragana = [
+  {char:'あ',rom:'a'},{char:'い',rom:'i'},{char:'う',rom:'u'},{char:'え',rom:'e'},{char:'お',rom:'o'},
+  {char:'か',rom:'ka'},{char:'き',rom:'ki'},{char:'く',rom:'ku'},{char:'け',rom:'ke'},{char:'こ',rom:'ko'},
+  {char:'さ',rom:'sa'},{char:'し',rom:'shi'},{char:'す',rom:'su'},{char:'せ',rom:'se'},{char:'そ',rom:'so'},
+  {char:'た',rom:'ta'},{char:'ち',rom:'chi'},{char:'つ',rom:'tsu'},{char:'て',rom:'te'},{char:'と',rom:'to'},
+  {char:'な',rom:'na'},{char:'に',rom:'ni'},{char:'ぬ',rom:'nu'},{char:'ね',rom:'ne'},{char:'の',rom:'no'},
+  {char:'は',rom:'ha'},{char:'ひ',rom:'hi'},{char:'ふ',rom:'fu'},{char:'へ',rom:'he'},{char:'ほ',rom:'ho'},
+  {char:'ま',rom:'ma'},{char:'み',rom:'mi'},{char:'む',rom:'mu'},{char:'め',rom:'me'},{char:'も',rom:'mo'},
+  {char:'や',rom:'ya'},{char:'ゆ',rom:'yu'},{char:'よ',rom:'yo'},
+  {char:'ら',rom:'ra'},{char:'り',rom:'ri'},{char:'る',rom:'ru'},{char:'れ',rom:'re'},{char:'ろ',rom:'ro'},
+  {char:'わ',rom:'wa'},{char:'を',rom:'wo'},{char:'ん',rom:'n'}
+];
+
+const katakana = [
+  {char:'ア',rom:'a'},{char:'イ',rom:'i'},{char:'ウ',rom:'u'},{char:'エ',rom:'e'},{char:'オ',rom:'o'},
+  {char:'カ',rom:'ka'},{char:'キ',rom:'ki'},{char:'ク',rom:'ku'},{char:'ケ',rom:'ke'},{char:'コ',rom:'ko'},
+  {char:'サ',rom:'sa'},{char:'シ',rom:'shi'},{char:'ス',rom:'su'},{char:'セ',rom:'se'},{char:'ソ',rom:'so'},
+  {char:'タ',rom:'ta'},{char:'チ',rom:'chi'},{char:'ツ',rom:'tsu'},{char:'テ',rom:'te'},{char:'ト',rom:'to'},
+  {char:'ナ',rom:'na'},{char:'ニ',rom:'ni'},{char:'ヌ',rom:'nu'},{char:'ネ',rom:'ne'},{char:'ノ',rom:'no'},
+  {char:'ハ',rom:'ha'},{char:'ヒ',rom:'hi'},{char:'フ',rom:'fu'},{char:'ヘ',rom:'he'},{char:'ホ',rom:'ho'},
+  {char:'マ',rom:'ma'},{char:'ミ',rom:'mi'},{char:'ム',rom:'mu'},{char:'メ',rom:'me'},{char:'モ',rom:'mo'},
+  {char:'ヤ',rom:'ya'},{char:'ユ',rom:'yu'},{char:'ヨ',rom:'yo'},
+  {char:'ラ',rom:'ra'},{char:'リ',rom:'ri'},{char:'ル',rom:'ru'},{char:'レ',rom:'re'},{char:'ロ',rom:'ro'},
+  {char:'ワ',rom:'wa'},{char:'ヲ',rom:'wo'},{char:'ン',rom:'n'}
+];
+
+const particles = [
+  {p:'は',name:'wa — Topic marker',desc:'Marks the topic of the sentence. Often translated as "as for..."',ex:'私は学生です。','exrom':'Watashi wa gakusei desu. — I am a student.'},
+  {p:'が',name:'ga — Subject marker',desc:'Marks the grammatical subject, especially when emphasizing who does something.',ex:'猫が好きです。','exrom':'Neko ga suki desu. — I like cats. (lit: Cats are liked.)'},
+  {p:'を',name:'wo — Object marker',desc:'Marks the direct object — the thing receiving the action.',ex:'水を飲みます。','exrom':'Mizu wo nomimasu. — I drink water.'},
+  {p:'に',name:'ni — Direction / time',desc:'Marks destination ("to"), location of existence ("at"), and time ("at/on").',ex:'東京に行きます。','exrom':'Tōkyō ni ikimasu. — I am going to Tokyo.'},
+  {p:'で',name:'de — Location of action',desc:'Marks where an action takes place (not just where something exists).',ex:'レストランで食べます。','exrom':'Resutoran de tabemasu. — I eat at the restaurant.'},
+  {p:'の',name:'no — Possession',desc:'Links two nouns. Works like "\'s" in English.',ex:'私の名前はジョーです。','exrom':'Watashi no namae wa Jō desu. — My name is Joe.'},
+];
+
+const numbers10 = [
+  {val:1,jp:'一',rom:'ichi'},{val:2,jp:'二',rom:'ni'},{val:3,jp:'三',rom:'san'},
+  {val:4,jp:'四',rom:'shi / yon'},{val:5,jp:'五',rom:'go'},{val:6,jp:'六',rom:'roku'},
+  {val:7,jp:'七',rom:'shichi / nana'},{val:8,jp:'八',rom:'hachi'},{val:9,jp:'九',rom:'ku / kyuu'},{val:10,jp:'十',rom:'juu'}
+];
+
+const numbersBig = [
+  {val:100,jp:'百',rom:'hyaku'},{val:200,jp:'二百',rom:'ni hyaku'},{val:1000,jp:'千',rom:'sen'},
+  {val:2000,jp:'二千',rom:'ni sen'},{val:5000,jp:'五千',rom:'go sen'},{val:10000,jp:'万',rom:'man'}
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+
+const state = {
+  hiraIdx: 0, hiraFlipped: false,
+  kataIdx: 0, kataFlipped: false,
+  learnedHira: new Set(JSON.parse(localStorage.getItem('learnedHira') || '[]')),
+  hQuiz: {score:0, total:0, streak:0, current:null},
+  kQuiz: {score:0, total:0, streak:0, current:null},
+};
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────────
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  else document.getElementById('page-coming').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + id + "'")) {
+      n.classList.add('active');
+    }
+  });
+  updateProgress();
+}
+
+// ── PROGRESS ─────────────────────────────────────────────────────────────────
+
+function updateProgress() {
+  const pct = Math.round((state.learnedHira.size / hiragana.length) * 100);
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+// ── HIRAGANA GRID ────────────────────────────────────────────────────────────
+
+function buildHiraganaGrid() {
+  const g = document.getElementById('hiragana-grid');
+  g.innerHTML = hiragana.map((h, i) => `
+    <div class="kana-cell ${state.learnedHira.has(i) ? 'learned' : ''}" onclick="toggleLearned(${i})" id="hcell-${i}">
+      <span class="kana-char">${h.char}</span>
+      <span class="kana-rom">${h.rom}</span>
+    </div>`).join('');
+}
+
+function toggleLearned(i) {
+  if (state.learnedHira.has(i)) state.learnedHira.delete(i);
+  else state.learnedHira.add(i);
+  localStorage.setItem('learnedHira', JSON.stringify([...state.learnedHira]));
+  document.getElementById('hcell-' + i).classList.toggle('learned');
+  updateProgress();
+}
+
+function buildKatakanaGrid() {
+  const g = document.getElementById('katakana-grid');
+  g.innerHTML = katakana.map((k, i) => `
+    <div class="kana-cell" onclick="">
+      <span class="kana-char">${k.char}</span>
+      <span class="kana-rom">${k.rom}</span>
+    </div>`).join('');
+}
+
+// ── FLASHCARDS ───────────────────────────────────────────────────────────────
+
+function flipCard(type) {
+  const card = document.getElementById(type + '-fc');
+  if (type === 'hira') {
+    state.hiraFlipped = !state.hiraFlipped;
+    card.classList.toggle('flipped', state.hiraFlipped);
+  } else {
+    state.kataFlipped = !state.kataFlipped;
+    card.classList.toggle('flipped', state.kataFlipped);
+  }
+}
+
+function updateFlashcard(type) {
+  const data = type === 'hira' ? hiragana : katakana;
+  const idx = type === 'hira' ? state.hiraIdx : state.kataIdx;
+  const item = data[idx];
+  document.getElementById(type === 'hira' ? 'hira-char' : 'kata-char').textContent = item.char;
+  document.getElementById(type === 'hira' ? 'hira-rom' : 'kata-rom').textContent = item.rom;
+  const counter = document.getElementById(type === 'hira' ? 'fc-counter' : 'kata-fc-counter');
+  counter.textContent = `Card ${idx + 1} of ${data.length}`;
+  if (type === 'hira') { state.hiraFlipped = false; document.getElementById('hira-fc').classList.remove('flipped'); }
+  else { state.kataFlipped = false; document.getElementById('kata-fc').classList.remove('flipped'); }
+}
+
+function nextCard(type) {
+  const data = type === 'hira' ? hiragana : katakana;
+  if (type === 'hira') state.hiraIdx = (state.hiraIdx + 1) % data.length;
+  else state.kataIdx = (state.kataIdx + 1) % data.length;
+  updateFlashcard(type);
+}
+
+function prevCard(type) {
+  const data = type === 'hira' ? hiragana : katakana;
+  if (type === 'hira') state.hiraIdx = (state.hiraIdx - 1 + data.length) % data.length;
+  else state.kataIdx = (state.kataIdx - 1 + data.length) % data.length;
+  updateFlashcard(type);
+}
+
+function markLearned() {
+  state.learnedHira.add(state.hiraIdx);
+  localStorage.setItem('learnedHira', JSON.stringify([...state.learnedHira]));
+  document.getElementById('hcell-' + state.hiraIdx) && document.getElementById('hcell-' + state.hiraIdx).classList.add('learned');
+  updateProgress();
+  nextCard('hira');
+}
+
+// ── QUIZ ─────────────────────────────────────────────────────────────────────
+
+function getRandExcluding(arr, exclude, count) {
+  const pool = arr.filter((_, i) => i !== exclude);
+  const result = [];
+  while (result.length < count && pool.length) {
+    const i = Math.floor(Math.random() * pool.length);
+    result.push(pool.splice(i, 1)[0]);
+  }
+  return result;
+}
+
+function renderQuiz(prefix, data, quizState) {
+  const correctIdx = Math.floor(Math.random() * data.length);
+  quizState.current = correctIdx;
+  const correct = data[correctIdx];
+  const wrongs = getRandExcluding(data, correctIdx, 3);
+  const opts = [correct, ...wrongs].sort(() => Math.random() - 0.5);
+
+  document.getElementById(prefix + '-question').textContent = correct.char;
+  document.getElementById(prefix + '-feedback').textContent = '';
+  const container = document.getElementById(prefix + '-options');
+  container.innerHTML = opts.map(o => `
+    <div class="quiz-opt" onclick="checkAnswer('${prefix}', '${o.rom}', '${correct.rom}', this)">${o.rom}</div>
+  `).join('');
+}
+
+function checkAnswer(prefix, chosen, correct, el) {
+  const data = prefix === 'h' ? hiragana : katakana;
+  const quizState = prefix === 'h' ? state.hQuiz : state.kQuiz;
+  document.querySelectorAll('#' + prefix + '-options .quiz-opt').forEach(o => o.classList.add('disabled'));
+  quizState.total++;
+  if (chosen === correct) {
+    el.classList.add('correct');
+    quizState.score++;
+    quizState.streak++;
+    document.getElementById(prefix + '-feedback').textContent = '✓ Correct! ' + (quizState.streak > 2 ? quizState.streak + ' in a row! 🔥' : '');
+    document.getElementById(prefix + '-feedback').style.color = 'var(--green)';
+  } else {
+    el.classList.add('wrong');
+    quizState.streak = 0;
+    document.getElementById(prefix + '-feedback').textContent = '✗ It was "' + correct + '"';
+    document.getElementById(prefix + '-feedback').style.color = 'var(--accent)';
+    // Highlight correct
+    document.querySelectorAll('#' + prefix + '-options .quiz-opt').forEach(o => {
+      if (o.textContent.trim() === correct) o.classList.add('correct');
+    });
+  }
+  document.getElementById(prefix + '-score').textContent = quizState.score;
+  document.getElementById(prefix + '-total').textContent = quizState.total;
+  document.getElementById(prefix + '-streak').textContent = quizState.streak;
+  setTimeout(() => renderQuiz(prefix, data, quizState), 1200);
+}
+
+function initHiraQuiz() {
+  state.hQuiz = {score:0, total:0, streak:0, current:null};
+  document.getElementById('h-score').textContent = 0;
+  document.getElementById('h-total').textContent = 0;
+  document.getElementById('h-streak').textContent = 0;
+  renderQuiz('h', hiragana, state.hQuiz);
+}
+
+function initKataQuiz() {
+  state.kQuiz = {score:0, total:0, streak:0, current:null};
+  document.getElementById('k-score').textContent = 0;
+  document.getElementById('k-total').textContent = 0;
+  document.getElementById('k-streak').textContent = 0;
+  renderQuiz('k', katakana, state.kQuiz);
+}
+
+// ── PARTICLES ────────────────────────────────────────────────────────────────
+
+function buildParticles() {
+  document.getElementById('particle-list').innerHTML = particles.map(p => `
+    <div class="grammar-row">
+      <div class="particle">${p.p}</div>
+      <div class="grammar-info">
+        <div class="grammar-name">${p.name}</div>
+        <div class="grammar-desc">${p.desc}</div>
+        <div class="grammar-ex">${p.ex}<div class="grammar-ex-rom">${p.exrom}</div></div>
+      </div>
+    </div>`).join('');
+}
+
+// ── NUMBERS ──────────────────────────────────────────────────────────────────
+
+function buildNumbers() {
+  document.getElementById('num-grid-10').innerHTML = numbers10.map(n => `
+    <div class="num-cell">
+      <div class="num-val">${n.val}</div>
+      <div class="num-jp">${n.jp}</div>
+      <div class="num-rom">${n.rom}</div>
+    </div>`).join('');
+  document.getElementById('num-grid-big').innerHTML = numbersBig.map(n => `
+    <div class="num-cell">
+      <div class="num-val">${n.val.toLocaleString()}</div>
+      <div class="num-jp">${n.jp}</div>
+      <div class="num-rom">${n.rom}</div>
+    </div>`).join('');
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+buildHiraganaGrid();
+buildKatakanaGrid();
+buildParticles();
+buildNumbers();
+updateFlashcard('hira');
+updateFlashcard('kata');
+initHiraQuiz();
+initKataQuiz();
+updateProgress();
+</script>
+</body>
+</html>
